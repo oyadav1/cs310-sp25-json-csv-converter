@@ -3,6 +3,10 @@ package edu.jsu.mcis.cs310;
 import com.github.cliftonlabs.json_simple.*;
 import com.opencsv.*;
 
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.*;
+
 public class Converter {
     
     /*
@@ -73,38 +77,111 @@ public class Converter {
     
     @SuppressWarnings("unchecked")
     public static String csvToJson(String csvString) {
-        
-        String result = "{}"; // default return value; replace later!
-        
+        String result = "{}"; // Default return value
+
         try {
-        
-            // INSERT YOUR CODE HERE
-            
-        }
+            CSVReader reader = new CSVReader(new StringReader(csvString));
+            List<String[]> full = reader.readAll();
+            reader.close();
+
+            if (full.isEmpty()) return result;
+
+            Iterator<String[]> iterator = full.iterator();
+
+            JsonArray colHeadings = new JsonArray();
+            JsonArray prodNums = new JsonArray();
+            JsonArray data = new JsonArray();
+
+            if (iterator.hasNext()) {
+                String[] headers = iterator.next();
+                colHeadings.addAll(Arrays.asList(headers));
+
+                while (iterator.hasNext()) {
+                    String[] row = iterator.next();
+
+                    prodNums.add(row[0]);
+
+                    JsonArray rowData = new JsonArray();
+                    for (int i = 1; i < row.length; i++) {
+                        if (i == 2 || i == 3) { 
+                          
+                            rowData.add(Integer.parseInt(row[i]));
+                        } else {
+                            rowData.add(row[i]); // Treat everything else as string
+                        }
+                    }
+                    data.add(rowData);
+                }
+            }
+
+            JsonObject jsonObject = new JsonObject();
+            jsonObject.put("ProdNums", prodNums);
+            jsonObject.put("ColHeadings", colHeadings);
+            jsonObject.put("Data", data);
+
+            result = Jsoner.serialize(jsonObject);
+        } 
         catch (Exception e) {
             e.printStackTrace();
         }
-        
+
         return result.trim();
-        
     }
-    
+
     @SuppressWarnings("unchecked")
     public static String jsonToCsv(String jsonString) {
-        
-        String result = ""; // default return value; replace later!
-        
+        String result = ""; // Default return value
+
         try {
-            
-            // INSERT YOUR CODE HERE
-            
-        }
+            // Parse JSON
+            JsonObject jsonObject = (JsonObject) Jsoner.deserialize(jsonString);
+
+            JsonArray prodNums = (JsonArray) jsonObject.get("ProdNums");
+            JsonArray colHeadings = (JsonArray) jsonObject.get("ColHeadings");
+            JsonArray data = (JsonArray) jsonObject.get("Data");
+
+            StringWriter writer = new StringWriter();
+            CSVWriter csvWriter = new CSVWriter(writer);
+
+            // Write headers
+            String[] headers = new String[colHeadings.size()];
+            for (int i = 0; i < colHeadings.size(); i++) {
+                headers[i] = colHeadings.get(i).toString();
+            }
+            csvWriter.writeNext(headers);
+
+            // Write data rows
+            for (int i = 0; i < data.size(); i++) {
+                JsonArray row = (JsonArray) data.get(i);
+                String[] csvRow = new String[row.size() + 1];
+
+                csvRow[0] = prodNums.get(i).toString(); // First column (ProdNum as string)
+                for (int j = 0; j < row.size(); j++) {
+                    if (j == 1) {
+                     
+                        csvRow[j + 1] = row.get(j).toString();
+                    } 
+                    else if (j == 2) { 
+                        
+                        int episode = ((Number) row.get(j)).intValue();
+                        csvRow[j + 1] = String.format("%02d", episode); 
+                    } 
+                    else {
+                        csvRow[j + 1] = row.get(j).toString(); // Everything else as string
+                    }
+                }
+                csvWriter.writeNext(csvRow);
+            }
+
+            csvWriter.close();
+            result = writer.toString();
+        } 
         catch (Exception e) {
             e.printStackTrace();
         }
-        
+
         return result.trim();
-        
     }
-    
+
 }
+    
